@@ -1,71 +1,174 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools">
+    xmlns:tools="http://schemas.android.com/tools"
+    package="com.libertyshow.app">
 
-    <!-- ── Network Permissions ── -->
+    <!-- ════════════════════════════════════════════════════════════════
+         1. صلاحيات الإنترنت والشبكة
+         ════════════════════════════════════════════════════════════════ -->
+
+    <!-- الوصول إلى الإنترنت (ضروري للبحث والتورنت) -->
     <uses-permission android:name="android.permission.INTERNET" />
+
+    <!-- مراقبة حالة الشبكة (واي فاي / بيانات) -->
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
+    <!-- مراقبة حالة الواي فاي تحديداً -->
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
 
-    <!-- ── Storage Permissions ── -->
-    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"
+    <!-- تغيير إعدادات الواي فاي (اختياري - لبعض مكتبات التورنت) -->
+    <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />
+
+    <!-- الحصول على IP الكامل للجهاز عبر الواي فاي (مطلوب لـ DHT في التورنت) -->
+    <uses-permission android:name="android.permission.CHANGE_WIFI_MULTICAST_STATE" />
+
+
+    <!-- ════════════════════════════════════════════════════════════════
+         2. صلاحيات التخزين (الهاتف الداخلي)
+         ════════════════════════════════════════════════════════════════ -->
+
+    <!-- قراءة التخزين الخارجي - Android 9 وأقل -->
+    <uses-permission
+        android:name="android.permission.READ_EXTERNAL_STORAGE"
         android:maxSdkVersion="32" />
-    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"
-        android:maxSdkVersion="28"
-        tools:ignore="ScopedStorage" />
-    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE"
+
+    <!-- كتابة التخزين الخارجي - Android 9 وأقل -->
+    <uses-permission
+        android:name="android.permission.WRITE_EXTERNAL_STORAGE"
+        android:maxSdkVersion="29"
         tools:ignore="ScopedStorage" />
 
-    <!-- ── Foreground Service (background download) ── -->
+    <!-- إدارة كامل التخزين - Android 11+ (مطلوب للحفظ في أي مسار) -->
+    <uses-permission
+        android:name="android.permission.MANAGE_EXTERNAL_STORAGE"
+        tools:ignore="ScopedStorage" />
+
+    <!-- قراءة ملفات الوسائط - Android 13+ -->
+    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
+    <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+
+    <!-- قراءة الملفات الأخرى (SRT, ASS ترجمات) - Android 13+ -->
+    <!-- تغطي ملفات الترجمة التي ليست وسائط -->
+    <uses-permission android:name="android.permission.READ_MEDIA_VISUAL_USER_SELECTED" />
+
+
+    <!-- ════════════════════════════════════════════════════════════════
+         3. صلاحيات USB والتخزين الخارجي
+         ════════════════════════════════════════════════════════════════ -->
+
+    <!-- الوصول إلى أجهزة USB (للحفظ على USB) -->
+    <uses-permission android:name="android.permission.USB_PERMISSION"
+        tools:ignore="SystemPermission" />
+
+    <!-- المطلوب للـ SAF (Storage Access Framework) لاختيار مجلد USB -->
+    <!-- يُمنح عبر Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION تلقائياً -->
+
+
+    <!-- ════════════════════════════════════════════════════════════════
+         4. صلاحيات الخدمة الأمامية (Foreground Service)
+         ════════════════════════════════════════════════════════════════ -->
+
+    <!-- تشغيل خدمة التورنت في الخلفية مع إشعار -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
-    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
-    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
-    <!-- Wake lock during downloads -->
+    <!-- نوع الخدمة: تنزيل بيانات - Android 14+ -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+
+    <!-- منع الجهاز من النوم أثناء التحميل -->
     <uses-permission android:name="android.permission.WAKE_LOCK" />
 
-    <!-- ── TV Features ── -->
-    <uses-feature android:name="android.software.leanback" android:required="false" />
-    <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
-    <!-- TV boxes typically don't have cameras/microphone -->
-    <uses-feature android:name="android.hardware.camera" android:required="false" />
-    <uses-feature android:name="android.hardware.camera.autofocus" android:required="false" />
-    <uses-feature android:name="android.hardware.microphone" android:required="false" />
+    <!-- تشغيل التطبيق عند بدء الجهاز (لاستكمال التنزيلات) -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+
+
+    <!-- ════════════════════════════════════════════════════════════════
+         5. صلاحيات الإشعارات
+         ════════════════════════════════════════════════════════════════ -->
+
+    <!-- إرسال الإشعارات - Android 13+ -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <!-- تحديث الإشعار المستمر أثناء التنزيل -->
+    <uses-permission android:name="android.permission.UPDATE_DEVICE_STATS"
+        tools:ignore="ProtectedPermissions" />
+
+
+    <!-- ════════════════════════════════════════════════════════════════
+         6. صلاحيات الأداء والبطارية
+         ════════════════════════════════════════════════════════════════ -->
+
+    <!-- طلب استثناء من توفير البطارية (لاستمرار التنزيل) -->
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+
+    <!-- منع وضع Doze من إيقاف التنزيل -->
+    <uses-permission android:name="android.permission.CHANGE_NETWORK_STATE" />
+
+
+    <!-- ════════════════════════════════════════════════════════════════
+         7. صلاحيات تشغيل الفيديو
+         ════════════════════════════════════════════════════════════════ -->
+
+    <!-- إبقاء الشاشة مضاءة أثناء تشغيل الفيديو -->
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+
+    <!-- التحكم في مستوى الصوت -->
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+
+    <!-- تشغيل الفيديو على تلفزيون / شاشة خارجية -->
+    <uses-permission android:name="android.permission.BLUETOOTH" />
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT"
+        android:minSdkVersion="31" />
+
+
+    <!-- ════════════════════════════════════════════════════════════════
+         8. صلاحيات خاصة بالتلفزيون (Android TV)
+         ════════════════════════════════════════════════════════════════ -->
+
+    <!-- دعم leanback لـ Android TV -->
+    <uses-feature
+        android:name="android.software.leanback"
+        android:required="false" />
+
+    <!-- الشاشة التلمسية غير مطلوبة (TV) -->
+    <uses-feature
+        android:name="android.hardware.touchscreen"
+        android:required="false" />
+
+
+    <!-- ════════════════════════════════════════════════════════════════
+         تعريف التطبيق
+         ════════════════════════════════════════════════════════════════ -->
 
     <application
-        android:name=".LibertyApp"
+        android:name=".App"
         android:allowBackup="true"
-        android:hardwareAccelerated="true"
-        android:icon="@android:drawable/sym_def_app_icon"
+        android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
-        android:theme="@style/Theme.LibertyShow"
-        android:usesCleartextTraffic="false"
+        android:theme="@style/Theme.AppCompat.NoActionBar"
+        android:usesCleartextTraffic="true"
+        android:requestLegacyExternalStorage="true"
         tools:targetApi="31">
 
-        <!-- ── Main Activity (WebView Host) ── -->
+        <!-- MainActivity -->
         <activity
             android:name=".MainActivity"
-            android:configChanges="keyboard|keyboardHidden|orientation|screenSize|screenLayout|smallestScreenSize|uiMode"
+            android:configChanges="orientation|screenSize|keyboardHidden"
             android:exported="true"
             android:launchMode="singleTop"
-            android:screenOrientation="landscape"
-            android:hardwareAccelerated="true"
-            android:windowSoftInputMode="adjustPan">
+            android:screenOrientation="landscape">
 
-            <!-- Standard launcher -->
+            <!-- تشغيل عادي -->
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-
-            <!-- TV launcher (home screen) -->
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
+                <!-- TV Launcher -->
                 <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
             </intent-filter>
 
-            <!-- Accept magnet links from browser -->
+            <!-- فتح روابط المغنت مباشرة من المتصفح -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
@@ -73,31 +176,22 @@
                 <data android:scheme="magnet" />
             </intent-filter>
 
-            <!-- Accept .torrent files -->
+            <!-- فتح ملفات .torrent -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <data android:mimeType="application/x-bittorrent" />
             </intent-filter>
+
         </activity>
 
-        <!-- ── Native Video Player Activity ── -->
-        <activity
-            android:name=".PlayerActivity"
-            android:configChanges="keyboard|keyboardHidden|orientation|screenSize"
-            android:exported="false"
-            android:hardwareAccelerated="true"
-            android:launchMode="singleTop"
-            android:screenOrientation="landscape"
-            android:theme="@style/Theme.LibertyShow.Player" />
-
-        <!-- ── Background Download Service ── -->
+        <!-- خدمة التورنت الأمامية -->
         <service
             android:name=".TorrentService"
             android:exported="false"
             android:foregroundServiceType="dataSync" />
 
-        <!-- ── FileProvider (for sharing video files) ── -->
+        <!-- FileProvider لمشاركة الملفات مع المشغل الخارجي -->
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.fileprovider"
@@ -108,5 +202,15 @@
                 android:resource="@xml/file_paths" />
         </provider>
 
+        <!-- استكمال التنزيلات عند إعادة تشغيل الجهاز -->
+        <receiver
+            android:name=".BootReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
+
     </application>
+
 </manifest>
