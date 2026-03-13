@@ -2,21 +2,16 @@ package com.libertyshow.app
 
 import android.app.*
 import android.content.Intent
-import android.os.IBinder
 import android.os.Build
+import android.os.IBinder
 import androidx.core.app.NotificationCompat
 
-/**
- * TorrentService — Foreground service that keeps downloads alive
- * when the app is backgrounded.
- * Integrates with TorrentStream-Android library.
- */
 class TorrentService : Service() {
 
     companion object {
-        private const val CHANNEL_ID   = "liberty_downloads"
-        private const val NOTIF_ID     = 101
-        private val activeTorrents     = mutableMapOf<String, Any>() // id -> TorrentStream handle
+        private const val CHANNEL_ID = "liberty_downloads"
+        private const val NOTIF_ID   = 101
+        private val activeTorrents   = mutableMapOf<String, Any>()
 
         fun pause(id: String)  { /* activeTorrents[id]?.pause()  */ }
         fun resume(id: String) { /* activeTorrents[id]?.resume() */ }
@@ -33,15 +28,14 @@ class TorrentService : Service() {
         val savePath = intent.getStringExtra("savePath")  ?: return START_NOT_STICKY
         val id       = intent.getStringExtra("id")        ?: return START_NOT_STICKY
 
-        startForeground(NOTIF_ID, buildNotification("Starting download..."))
+        startForeground(NOTIF_ID, buildNotification("جارٍ التحميل..."))
 
-        // ── TorrentStream integration point ──
+        // TorrentStream integration point:
         // val options = TorrentOptions.Builder()
         //     .saveLocation(savePath)
         //     .removeFilesAfterStop(false)
         //     .build()
         // val ts = TorrentStream.init(options)
-        // ts.addListener(object : TorrentListener { ... })
         // ts.startStream(magnet)
         // activeTorrents[id] = ts
 
@@ -61,10 +55,11 @@ class TorrentService : Service() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val ch = NotificationChannel(
                 CHANNEL_ID,
-                "Downloads",
+                "التنزيلات",
                 NotificationManager.IMPORTANCE_LOW
-            ).apply { description = "Liberty Show active downloads" }
-            getSystemService(NotificationManager::class.java)?.createNotificationChannel(ch)
+            ).apply { description = "Liberty Show — التنزيلات النشطة" }
+            getSystemService(NotificationManager::class.java)
+                ?.createNotificationChannel(ch)
         }
     }
 

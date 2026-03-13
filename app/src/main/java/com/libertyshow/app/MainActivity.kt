@@ -9,6 +9,9 @@ import android.os.Bundle
 import android.os.Environment
 import android.os.StatFs
 import android.provider.Settings
+import android.view.View
+import android.view.WindowInsets
+import android.view.WindowInsetsController
 import android.webkit.*
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
@@ -44,7 +47,6 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    // ── Launcher لصلاحية MANAGE_ALL_FILES (Android 11+) ──────────────
     private val manageFilesLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) {
@@ -60,25 +62,32 @@ class MainActivity : AppCompatActivity() {
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        // Full-screen immersive for TV & phone
-        @Suppress("DEPRECATION")
-        window.decorView.systemUiVisibility = (
-            android.view.View.SYSTEM_UI_FLAG_LAYOUT_STABLE
-            or android.view.View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
-            or android.view.View.SYSTEM_UI_FLAG_FULLSCREEN
-            or android.view.View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
-        )
+
+        // Full-screen immersive — API-safe
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            window.insetsController?.let {
+                it.hide(WindowInsets.Type.statusBars() or WindowInsets.Type.navigationBars())
+                it.systemBarsBehavior =
+                    WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            }
+        } else {
+            @Suppress("DEPRECATION")
+            window.decorView.systemUiVisibility = (
+                View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                or View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                or View.SYSTEM_UI_FLAG_FULLSCREEN
+                or View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+            )
+        }
+
         webView = WebView(this).also { setContentView(it) }
         configureWebView()
-
-        // ── التحقق من صلاحيات التخزين قبل البدء ──────────────────────
         checkStoragePermissions()
     }
 
-    // ── التحقق من الصلاحيات حسب إصدار Android ───────────────────────
+    // ── Storage Permissions ───────────────────────────────────────────
     private fun checkStoragePermissions() {
         when {
-            // Android 11+ → MANAGE_EXTERNAL_STORAGE
             Build.VERSION.SDK_INT >= Build.VERSION_CODES.R -> {
                 if (Environment.isExternalStorageManager()) {
                     onStoragePermissionGranted()
@@ -90,27 +99,21 @@ class MainActivity : AppCompatActivity() {
                     manageFilesLauncher.launch(intent)
                 }
             }
-            // Android 6–10 → READ/WRITE_EXTERNAL_STORAGE
             Build.VERSION.SDK_INT >= Build.VERSION_CODES.M -> {
                 val read  = android.Manifest.permission.READ_EXTERNAL_STORAGE
                 val write = android.Manifest.permission.WRITE_EXTERNAL_STORAGE
                 val denied = listOf(read, write).filter {
                     ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED
                 }
-                if (denied.isEmpty()) {
-                    onStoragePermissionGranted()
-                } else {
-                    ActivityCompat.requestPermissions(
-                        this, denied.toTypedArray(), STORAGE_PERMISSION_CODE
-                    )
-                }
+                if (denied.isEmpty()) onStoragePermissionGranted()
+                else ActivityCompat.requestPermissions(
+                    this, denied.toTypedArray(), STORAGE_PERMISSION_CODE
+                )
             }
-            // Android < 6 → صلاحيات ممنوحة تلقائياً
             else -> onStoragePermissionGranted()
         }
     }
 
-    // ── نتيجة طلب الصلاحية (Android 6–10) ───────────────────────────
     override fun onRequestPermissionsResult(
         requestCode: Int,
         permissions: Array<out String>,
@@ -118,43 +121,44 @@ class MainActivity : AppCompatActivity() {
     ) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         if (requestCode == STORAGE_PERMISSION_CODE) {
-            if (grantResults.isNotEmpty() && grantResults.all { it == PackageManager.PERMISSION_GRANTED }) {
+            if (grantResults.isNotEmpty() && grantResults.all { it == PackageManager.PERMISSION_GRANTED })
                 onStoragePermissionGranted()
-            } else {
+            else
                 onStoragePermissionDenied()
-            }
         }
     }
 
-    // ── تهيئة التطبيق بعد منح الصلاحية ──────────────────────────────
     private fun onStoragePermissionGranted() {
-        // Handle magnet link from intent (e.g., from browser)
         intent?.data?.toString()?.let { uri ->
             if (uri.startsWith("magnet:")) {
-                webView.evaluateJavascript("openStorageModal('${uri.replace("'", "\\'")}');", null)
+                webView.evaluateJavascript(
+                    "openStorageModal('${uri.replace("'", "\\'")}');", null
+                )
             }
         }
         webView.loadUrl("file:///android_asset/web/index.html")
     }
 
-    // ── رفض الصلاحية → إعلام المستخدم ───────────────────────────────
     private fun onStoragePermissionDenied() {
         Toast.makeText(
             this,
             "يتطلب التطبيق إذن الوصول إلى التخزين لتشغيل التنزيلات.",
             Toast.LENGTH_LONG
         ).show()
-        // تحميل الصفحة مع إبلاغ JS بأن الصلاحية مرفوضة
         webView.loadUrl("file:///android_asset/web/index.html")
-        webView.evaluateJavascript("window.onStoragePermissionDenied && window.onStoragePermissionDenied()", null)
+        webView.evaluateJavascript(
+            "window.onStoragePermissionDenied && window.onStoragePermissionDenied()", null
+        )
     }
 
+    // ── WebView Setup ─────────────────────────────────────────────────
     @SuppressLint("SetJavaScriptEnabled")
     private fun configureWebView() {
         webView.settings.apply {
             javaScriptEnabled                = true
             domStorageEnabled                = true
             allowFileAccess                  = true
+            @Suppress("DEPRECATION")
             allowFileAccessFromFileURLs      = true
             mediaPlaybackRequiresUserGesture = false
             cacheMode                        = WebSettings.LOAD_DEFAULT
@@ -162,15 +166,15 @@ class MainActivity : AppCompatActivity() {
             builtInZoomControls  = false
             displayZoomControls  = false
         }
-        webView.setLayerType(android.view.View.LAYER_TYPE_HARDWARE, null)
+        webView.setLayerType(View.LAYER_TYPE_HARDWARE, null)
         webView.isFocusableInTouchMode = true
         webView.requestFocus()
         webView.addJavascriptInterface(AndroidBridge(), "Android")
 
         webView.webChromeClient = object : WebChromeClient() {
-            private var customView: android.view.View? = null
+            private var customView: View? = null
             private var cb: CustomViewCallback? = null
-            override fun onShowCustomView(view: android.view.View, callback: CustomViewCallback) {
+            override fun onShowCustomView(view: View, callback: CustomViewCallback) {
                 customView = view; cb = callback; setContentView(view)
             }
             override fun onHideCustomView() {
@@ -179,11 +183,14 @@ class MainActivity : AppCompatActivity() {
         }
 
         webView.webViewClient = object : WebViewClient() {
-            override fun shouldOverrideUrlLoading(view: WebView, req: WebResourceRequest): Boolean {
+            override fun shouldOverrideUrlLoading(
+                view: WebView, req: WebResourceRequest
+            ): Boolean {
                 val url = req.url.toString()
                 if (url.startsWith("magnet:")) {
-                    val escaped = url.replace("'", "\\'")
-                    view.evaluateJavascript("openStorageModal('$escaped')", null)
+                    view.evaluateJavascript(
+                        "openStorageModal('${url.replace("'", "\\'")}');", null
+                    )
                     return true
                 }
                 return false
@@ -191,17 +198,21 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    // ── Android ↔ JS Bridge ──────────────────────────────────────────
+    // ── JS Bridge ─────────────────────────────────────────────────────
     inner class AndroidBridge {
 
         @JavascriptInterface
         fun getUsbStatus(): String {
             val point = detectUsb()
             return if (point != null) {
-                val st = StatFs(point)
+                val st   = StatFs(point)
                 val free = (st.availableBlocksLong * st.blockSizeLong).toDouble() / (1 shl 30)
-                JSONObject().put("available", true).put("freeGB", "%.2f".format(free).toDouble())
-                    .put("label", File(point).name).put("path", point).toString()
+                JSONObject()
+                    .put("available", true)
+                    .put("freeGB", "%.2f".format(free).toDouble())
+                    .put("label", File(point).name)
+                    .put("path", point)
+                    .toString()
             } else {
                 JSONObject().put("available", false).put("freeGB", 0).toString()
             }
@@ -227,8 +238,7 @@ class MainActivity : AppCompatActivity() {
         fun startTorrentEngine(magnet: String, savePath: String): String {
             val id   = "tor_${System.currentTimeMillis()}"
             val name = magnetName(magnet)
-            // Launch background download service
-            val svc = Intent(this@MainActivity, TorrentService::class.java).apply {
+            val svc  = Intent(this@MainActivity, TorrentService::class.java).apply {
                 putExtra("magnet",   magnet)
                 putExtra("savePath", savePath)
                 putExtra("id",       id)
@@ -268,7 +278,7 @@ class MainActivity : AppCompatActivity() {
             runOnUiThread { Toast.makeText(this@MainActivity, msg, Toast.LENGTH_SHORT).show() }
     }
 
-    // ── Helpers ──────────────────────────────────────────────────────
+    // ── Helpers ───────────────────────────────────────────────────────
     private fun detectUsb(): String? =
         File("/storage").listFiles()?.firstOrNull { dir ->
             val n = dir.name.lowercase()
@@ -277,20 +287,25 @@ class MainActivity : AppCompatActivity() {
 
     private fun magnetName(magnet: String): String {
         val dn = Regex("dn=([^&]+)").find(magnet)?.groupValues?.get(1)
-        if (dn != null) return try { URLDecoder.decode(dn, "UTF-8") } catch (e: Exception) { dn }
-        val h = Regex("btih:([a-fA-F0-9]+)", RegexOption.IGNORE_CASE).find(magnet)?.groupValues?.get(1)
+        if (dn != null) return try {
+            URLDecoder.decode(dn, "UTF-8")
+        } catch (e: Exception) { dn }
+        val h = Regex(
+            "btih:([a-fA-F0-9]+)", RegexOption.IGNORE_CASE
+        ).find(magnet)?.groupValues?.get(1)
         return if (h != null) "Torrent_${h.take(8).uppercase()}" else "Unknown"
     }
 
-    // ── TV Back Button ───────────────────────────────────────────────
+    // ── Back Button (TV) ──────────────────────────────────────────────
     @Deprecated("Deprecated")
     override fun onBackPressed() {
         webView.evaluateJavascript(
-            "document.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}))", null
+            "document.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}))",
+            null
         )
     }
 
-    // ── Memory Management ────────────────────────────────────────────
+    // ── Memory ────────────────────────────────────────────────────────
     override fun onLowMemory() {
         super.onLowMemory()
         webView.clearCache(false)
