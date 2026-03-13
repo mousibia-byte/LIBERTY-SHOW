@@ -1,4 +1,4 @@
-name: 🎬 Build Liberty Show APK
+name: 🎬 Build Liberty Show APK (Debug)
 
 on:
   push:
@@ -9,7 +9,7 @@ on:
 
 jobs:
   build:
-    name: Build APK
+    name: Build Debug APK
     runs-on: ubuntu-latest
 
     steps:
@@ -37,39 +37,22 @@ jobs:
           echo "✅ Assets ready."
 
       # ── 5. Setup Gradle ───────────────────────────────────────────
-      - name: � Setup Gradle
+      - name: 🐘 Setup Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '8.5'
 
-      # ── 6. Decode Keystore ────────────────────────────────────────
-      - name: 🔑 Decode Release Keystore
-        if: github.event_name != 'pull_request' && env.KEYSTORE_BASE64 != ''
-        env:
-          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
-        run: |
-          echo "$KEYSTORE_BASE64" | base64 --decode > app/release.keystore
-          echo "KEYSTORE_PATH=release.keystore" >> $GITHUB_ENV
-          echo "✅ Keystore ready"
+      # ── 6. Make gradlew executable ────────────────────────────────
+      - name: Make gradlew executable
+        run: chmod +x ./gradlew
 
       # ── 7. Build Debug APK ────────────────────────────────────────
       - name: 🔨 Build Debug APK
-        run: gradle assembleDebug --no-daemon --stacktrace
+        run: ./gradlew assembleDebug --no-daemon --stacktrace
         env:
           GRADLE_OPTS: "-Xmx2048m -XX:+HeapDumpOnOutOfMemoryError -Dfile.encoding=UTF-8"
 
-      # ── 8. Build Release APK ──────────────────────────────────────
-      - name: 🚀 Build Release APK
-        if: github.event_name != 'pull_request'
-        run: gradle assembleRelease --no-daemon
-        env:
-          KEYSTORE_PATH:     ${{ env.KEYSTORE_PATH || '' }}
-          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
-          KEY_ALIAS:         ${{ secrets.KEY_ALIAS }}
-          KEY_PASSWORD:      ${{ secrets.KEY_PASSWORD }}
-          GRADLE_OPTS:       "-Xmx2048m"
-
-      # ── 10. Rename APK ────────────────────────────────────────────
+      # ── 8. Rename APK ────────────────────────────────────────────
       - name: 📝 Rename APK files
         run: |
           # Rename with version info
@@ -81,48 +64,11 @@ jobs:
           echo "APK files:"
           find app/build/outputs/apk -name "*.apk"
 
-      # ── 11. Upload Debug APK ──────────────────────────────────────
+      # ── 9. Upload Debug APK ──────────────────────────────────────
       - name: 📤 Upload Debug APK
         uses: actions/upload-artifact@v4
         with:
-          name: LibertyShow-Debug-${{ github.run_number }}
+          name: LibertyShow-Debug-APK
           path: app/build/outputs/apk/debug/*.apk
           retention-days: 30
           if-no-files-found: warn
-
-      # ── 12. Upload Release APK ────────────────────────────────────
-      - name: 📤 Upload Release APK
-        if: github.event_name != 'pull_request'
-        uses: actions/upload-artifact@v4
-        with:
-          name: LibertyShow-Release-${{ github.run_number }}
-          path: app/build/outputs/apk/release/*.apk
-          retention-days: 90
-          if-no-files-found: warn
-
-      # ── 13. GitHub Release (on version tag) ───────────────────────
-      - name: 🏷️ Create GitHub Release
-        if: startsWith(github.ref, 'refs/tags/v')
-        uses: softprops/action-gh-release@v2
-        with:
-          files: app/build/outputs/apk/release/*.apk
-          name: "Liberty Show ${{ github.ref_name }}"
-          generate_release_notes: true
-          body: |
-            ## 🎬 Liberty Show ${{ github.ref_name }}
-            
-            **ملف APK جاهز للتثبيت على Android TV Box و الهاتف**
-            
-            ### المميزات
-            - ✅ تشغيل مباشر من Magnet links
-            - ✅ اختيار مكان الحفظ: Internal أو USB
-            - ✅ تحسينات TV D-Pad navigation
-            - ✅ محرك ExoPlayer/Media3
-            - ✅ تحسين ذاكرة Low-RAM
-            
-            ### التثبيت
-            1. حمّل ملف APK
-            2. فعّل "Install from unknown sources"
-            3. ثبّت التطبيق
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
