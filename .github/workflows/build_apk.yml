@@ -36,21 +36,13 @@ jobs:
           find app/src/main/assets -type f
           echo "✅ Assets ready."
 
-      # ── 5. Gradle Permissions ─────────────────────────────────────
-      - name: 🔧 Gradle Execute Permission
-        run: chmod +x ./gradlew
-
-      # ── 6. Cache Gradle ───────────────────────────────────────────
-      - name: 🗃️ Cache Gradle packages
-        uses: actions/cache@v4
+      # ── 5. Setup Gradle ───────────────────────────────────────────
+      - name: � Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
         with:
-          path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-          key: gradle-${{ runner.os }}-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
-          restore-keys: gradle-${{ runner.os }}-
+          gradle-version: '8.5'
 
-      # ── 7. Decode Keystore ────────────────────────────────────────
+      # ── 6. Decode Keystore ────────────────────────────────────────
       - name: 🔑 Decode Release Keystore
         if: github.event_name != 'pull_request' && env.KEYSTORE_BASE64 != ''
         env:
@@ -60,16 +52,16 @@ jobs:
           echo "KEYSTORE_PATH=release.keystore" >> $GITHUB_ENV
           echo "✅ Keystore ready"
 
-      # ── 8. Build Debug APK ────────────────────────────────────────
+      # ── 7. Build Debug APK ────────────────────────────────────────
       - name: 🔨 Build Debug APK
-        run: ./gradlew assembleDebug --no-daemon --stacktrace
+        run: gradle assembleDebug --no-daemon --stacktrace
         env:
           GRADLE_OPTS: "-Xmx2048m -XX:+HeapDumpOnOutOfMemoryError -Dfile.encoding=UTF-8"
 
-      # ── 9. Build Release APK ──────────────────────────────────────
+      # ── 8. Build Release APK ──────────────────────────────────────
       - name: 🚀 Build Release APK
         if: github.event_name != 'pull_request'
-        run: ./gradlew assembleRelease --no-daemon
+        run: gradle assembleRelease --no-daemon
         env:
           KEYSTORE_PATH:     ${{ env.KEYSTORE_PATH || '' }}
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
